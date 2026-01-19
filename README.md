@@ -1,88 +1,102 @@
 # Bank Marketing Analysis Using Machine Learning
 
-Predicting whether a customer will subscribe to a term deposit using real telemarketing campaign data from a Portuguese bank (2008–2010). This project combines EDA, supervised ML modeling, and customer segmentation to help identify the right target audience and improve campaign strategy.
+An end-to-end machine learning project that analyzes real-world bank telemarketing data to predict whether a customer will subscribe to a term deposit. The project focuses on data preprocessing, handling class imbalance, model comparison using appropriate metrics, and translating results into actionable business insights.
 
 ---
 
-## Project Goal
+## Project Objective
 
 The goal of this project is to:
-- Understand what factors influence term-deposit subscription (`y = yes/no`)
-- Build ML models that can predict subscription likelihood for new customers
-- Provide insights that help marketing/sales teams plan better campaigns (who to call, when to call, and what patterns matter most)
+- Understand customer behavior in bank telemarketing campaigns
+- Predict whether a customer will subscribe to a term deposit (`yes` / `no`)
+- Identify key factors that influence subscription decisions
+- Support data-driven marketing strategies such as customer targeting and campaign timing
+
+This project treats the problem as a **binary classification task** with real-world constraints such as class imbalance and noisy customer data.
 
 ---
 
 ## Dataset
 
-**Source:** UCI Machine Learning Repository — Bank Marketing Dataset (Moro et al., 2014)  
-**File used:** `bank-additional-full.csv`  
-**Original size:** 41,188 rows × 21 columns  
-**After cleaning:** ~30,439 rows (after removing missing/unknown values and unrealistic outliers)
+- **Source:** UCI Machine Learning Repository — Bank Marketing Dataset  
+- **File used:** `bank-additional-full.csv`  
+- **Original size:** 41,188 rows × 21 columns  
+- **After cleaning:** 30,439 rows × 32 columns (after encoding)
 
-### Feature Types
-- **Customer details:** age, job, marital status, education, loans, housing, etc.
-- **Contact details:** contact method, month/day, duration
-- **Campaign history:** number of contacts, previous outcomes, recency of last contact
-- **Economic indicators:** euribor rate, employment variation, consumer confidence, etc.
-- **Target:** `y` (subscribed to term deposit)
-
----
-
-## Key Questions Explored
-
-This project investigates:
-- Which customer groups subscribe the most?
-- How does call behavior (duration, frequency) affect outcomes?
-- Which months/periods perform best for marketing campaigns?
-- How do past campaign outcomes affect future subscriptions?
-- What features contribute most to predicting subscription?
-- Can we discover distinct customer segments?
+### Feature Categories
+- **Customer attributes:** age, job, marital status, education, loans
+- **Contact details:** contact type, month, weekday, call duration
+- **Campaign history:** number of contacts, days since last contact, previous outcomes
+- **Economic indicators:** employment variation, euribor rate, consumer confidence
+- **Target:** `y` → subscription outcome (encoded as `y_enc`)
 
 ---
 
-## Workflow
+## Data Preprocessing
 
-### 1) Data Cleaning & Preprocessing
-- Replaced `"unknown"` with `NaN` and removed missing rows (dataset was large enough to support this)
-- Filtered unrealistic values:
-  - Age kept between **18 and 100**
-  - Very long call durations removed (extreme outliers)
+Key preprocessing steps:
+- Replaced `"unknown"` values with `NaN` and removed incomplete rows
+- Removed unrealistic outliers:
+  - Call duration > 2000 seconds
+  - Age outside the range 18–100
 - Encoded categorical variables using `LabelEncoder`
-- Scaled numeric variables using `StandardScaler`
-- Train/test split with **stratification**
+- Scaled numerical features using `StandardScaler`
+- Performed **stratified train–test split** to preserve class distribution
+- Addressed class imbalance using **SMOTE** on the training set only
 
-### 2) Handling Class Imbalance
-The dataset contains significantly more `no` than `yes`.  
-To reduce bias during training, we applied **SMOTE** on the training data to balance both classes.
+> ⚠️ **Data Leakage Note**  
+> The feature `duration` (call length) is known only *after* a call occurs. Including it improves predictive performance but introduces information leakage for pre-call targeting.  
+> In this project, `duration` is included to analyze **post-call subscription behavior**. For pre-call customer targeting, this feature should be excluded.
 
 ---
 
-## Models Trained (Supervised Learning)
+## Exploratory Data Analysis (EDA)
 
-We trained and compared multiple models to understand performance tradeoffs:
+Key insights from visualization and aggregation:
+- Certain occupations (e.g., students, retired customers) show higher subscription rates
+- Subscription likelihood varies significantly by month, showing seasonal patterns
+- Longer call duration strongly correlates with subscription outcome
+- Age shows a non-linear relationship with subscription probability
+- Economic indicators contribute meaningfully to prediction performance
 
-- **Logistic Regression** (baseline, interpretable)
-- **Random Forest** (nonlinear patterns + feature importance)
-- **K-Nearest Neighbors**
-- **Support Vector Machine** (trained on a subset due to compute cost)
-- **Neural Network (MLPClassifier)**
+---
+
+## Machine Learning Models
+
+We trained and evaluated multiple supervised learning models to understand tradeoffs between interpretability, performance, and robustness.
+
+### Models Trained
+- Logistic Regression
+- Random Forest
+- K-Nearest Neighbors (KNN)
+- Support Vector Machine (SVM) *(trained on a subset due to computational cost)*
+- Neural Network (MLPClassifier)
 
 ### Evaluation Metrics
-We used metrics beyond accuracy to handle imbalance and business relevance:
+Given class imbalance, models were evaluated using:
 - Accuracy
-- Precision / Recall / F1 (especially for the positive “subscriber” class)
+- Precision / Recall / F1-score
 - ROC–AUC
-- Average Precision (PR-AUC)
+- Average Precision (PR–AUC)
 - Confusion Matrix
+- ROC and Precision–Recall curves
 
 ---
 
-## Best Model
+## Model Performance Summary
 
-**Random Forest** was selected as the best overall model because it provided the strongest balance across metrics (not just accuracy), and also produced feature importance for interpretability.
+| Model                | Accuracy | AUC   | Avg Precision |
+|---------------------|----------|-------|---------------|
+| Logistic Regression | 0.849    | 0.930 | 0.590         |
+| **Random Forest**   | **0.898**| **0.940** | **0.647** |
+| KNN                 | 0.840    | 0.866 | 0.436         |
+| SVM                 | 0.901    | 0.911 | 0.637         |
+| Neural Network      | 0.883    | 0.911 | 0.558         |
 
-Top important predictors included:
+### Best Model: Random Forest
+Random Forest was selected as the best overall model because it provided the strongest balance between precision, recall, and AUC — not just accuracy. It also offered feature importance scores, improving interpretability.
+
+Top influential features included:
 - `duration`
 - `euribor3m`
 - `nr.employed`
@@ -91,24 +105,29 @@ Top important predictors included:
 
 ---
 
-## Unsupervised Learning (Segmentation)
+## Feature Importance
 
-To explore customer segments:
-- **PCA** was used for dimensionality reduction
-- **K-Means clustering** was applied to group customers into behavioral segments
-
-This supports marketing strategy by showing that customers are not a single uniform group and may respond better to different approaches.
+Feature importance from the Random Forest model highlights that both **customer engagement metrics** (call duration, previous contacts) and **economic indicators** play a significant role in subscription decisions.
 
 ---
 
-## Results Summary (High-level)
+## Curve Fitting: Age vs Subscription Rate
 
-- Subscription likelihood varies by job category and age group
-- Certain months show stronger response rates (seasonality effect)
-- Longer call duration strongly correlates with subscription outcome
-- Past campaign success increases future subscription likelihood
-- Economic indicators contribute meaningfully to prediction performance
-- Customer segmentation reveals distinct behavioral patterns
+A third-degree polynomial regression was used to model the non-linear relationship between age and subscription rate:
+- **RMSE:** 0.1349  
+- **R²:** 0.6151  
+
+Results show increased subscription likelihood among older customers, especially after age 60.
+
+---
+
+## Unsupervised Learning: Customer Segmentation
+
+To explore customer segments:
+- **PCA** was used for dimensionality reduction and visualization
+- **K-Means clustering (k = 5)** identified distinct customer behavior groups
+
+Although the first two PCA components explain ~29% of the variance, the visualization reveals meaningful customer segmentation patterns useful for marketing strategy.
 
 ---
 
@@ -118,8 +137,7 @@ This supports marketing strategy by showing that customers are not a single unif
 - Pandas, NumPy
 - Scikit-learn
 - Imbalanced-learn (SMOTE)
-- Matplotlib / Seaborn
-- Google Colab (development environment)
+- Matplotlib, Seaborn
+- Google Colab / Jupyter Notebook
 
 ---
-
